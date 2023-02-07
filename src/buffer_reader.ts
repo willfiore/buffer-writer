@@ -61,6 +61,31 @@ export class BufferReader {
         return value;
     }
 
+    readBigInt(): bigint | undefined {
+        const byteLength = this.readUint32();
+        if (byteLength === undefined) return undefined;
+
+        const bytes = [];
+
+        // Read in bytes
+        for (let i = 0; i < byteLength; ++i) {
+            const byte = this.readUint8();
+            if (byte === undefined) return undefined;
+
+            bytes.push(byte);
+        }
+
+        // convert bytes back into hex
+        const hex = bytes.map(e => e.toString(16).padStart(2, "0")).join("");
+
+        let v = BigInt("0x" + hex);
+
+        // Shift all numbers to right and xor if the first bit was signed
+        v = (v >> BigInt(1)) ^ (v & BigInt(1) ? BigInt(-1) : BigInt(0));
+
+        return v;
+    }
+
     readFloat32(): number | undefined {
         if (this.wouldOverflow(4)) return undefined;
         const value = this._dataView.getFloat32(this._byteOffset);

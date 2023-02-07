@@ -80,6 +80,29 @@ export class BufferWriter {
         this._byteOffset += 8;
     }
 
+    writeBigInt(value: bigint) {
+        // Adapted from https://stackoverflow.com/a/74246085
+
+        // shift 1 step to the left, and XOR if less than 0
+        value = (value << BigInt(1)) ^ (value < BigInt(0) ? BigInt(-1) : BigInt(0));
+
+        // convert to hex
+        let hex = value.toString(16);
+
+        // pad if neccesseery
+        if (hex.length % 2) hex = '0' + hex;
+
+        const byteLength = hex.length / 2;
+        this.writeUint32(byteLength);
+
+        for (let i = 0; i < byteLength; ++i) {
+            const j = i * 2;
+            const v = parseInt(hex.slice(j, j + 2), 16);
+
+            this.writeUint8(v);
+        }
+    }
+
     writeFloat32(value: number) {
         this.maybeReallocate(4);
 
