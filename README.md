@@ -3,7 +3,7 @@
 Simply read and write binary data. Useful when you want to serialize data
 sequentially (e.g. network packets).
 
-# Basic usage
+## Basic usage
 
 ```ts
 import { BufferWriter, BufferReader } from "@willfiore/buffer-writer";
@@ -25,3 +25,7 @@ const v3 = r.readFloat64(); // 1240.015
 
 const v4 = r.readString(); // undefined (overread)
 ```
+
+## Notes
+
+- Strings are encoded as UTF-8 and serialized with a 32-bit length, followed by the string bytes.
