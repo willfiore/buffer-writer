@@ -61,6 +61,38 @@ export class BufferReader {
         return value;
     }
 
+    readSint8(): number | undefined {
+        if (this.wouldOverflow(1)) return undefined;
+        const value = this._dataView.getInt8(this._byteOffset);
+        this._byteOffset += 1;
+
+        return value;
+    }
+
+    readSint16(): number | undefined {
+        if (this.wouldOverflow(2)) return undefined;
+        const value = this._dataView.getInt16(this._byteOffset);
+        this._byteOffset += 2;
+
+        return value;
+    }
+
+    readSint32(): number | undefined {
+        if (this.wouldOverflow(4)) return undefined;
+        const value = this._dataView.getInt32(this._byteOffset);
+        this._byteOffset += 4;
+
+        return value;
+    }
+
+    readSint64(): bigint | undefined {
+        if (this.wouldOverflow(8)) return undefined;
+        const value = this._dataView.getBigInt64(this._byteOffset);
+        this._byteOffset += 8;
+
+        return value;
+    }
+
     readBigInt(): bigint | undefined {
         const byteLength = this.readUint32();
         if (byteLength === undefined) return undefined;

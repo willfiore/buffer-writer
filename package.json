@@ -1,7 +1,7 @@
 {
   "name": "@willfiore/buffer-writer",
   "author": "Will Fiore",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Simply read and write binary data.",
   "keywords": [],
   "license": "ISC",

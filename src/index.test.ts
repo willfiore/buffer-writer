@@ -15,6 +15,10 @@ describe("suite", () => {
         w.writeString("hello world");
         w.writeBigInt(BigInt("-123456789012345678901234567890"));
         w.writeUint8(2);
+        w.writeSint8(-44);
+        w.writeSint8(44);
+        w.writeSint16(-11000);
+        w.writeSint16(11001);
 
         const r = new BufferReader({ buffer: w.buffer });
 
@@ -29,6 +33,10 @@ describe("suite", () => {
         expect(r.readString()).toBe("hello world");
         expect(r.readBigInt()).toBe(BigInt("-123456789012345678901234567890"));
         expect(r.readUint8()).toBe(2);
+        expect(r.readSint8()).toBe(-44);
+        expect(r.readSint8()).toBe(44);
+        expect(r.readSint16()).toBe(-11000);
+        expect(r.readSint16()).toBe(11001);
 
         // overread fails
         expect(r.readUint8()).toBe(undefined);

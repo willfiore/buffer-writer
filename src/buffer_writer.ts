@@ -80,6 +80,34 @@ export class BufferWriter {
         this._byteOffset += 8;
     }
 
+    writeSint8(value: number) {
+        this.maybeReallocate(1);
+
+        this._dataView.setInt8(this._byteOffset, value);
+        this._byteOffset += 1;
+    }
+
+    writeSint16(value: number) {
+        this.maybeReallocate(2);
+
+        this._dataView.setInt16(this._byteOffset, value);
+        this._byteOffset += 2;
+    }
+
+    writeSint32(value: number) {
+        this.maybeReallocate(4);
+
+        this._dataView.setInt32(this._byteOffset, value);
+        this._byteOffset += 4;
+    }
+
+    writeSint64(value: bigint) {
+        this.maybeReallocate(8);
+
+        this._dataView.setBigInt64(this._byteOffset, value);
+        this._byteOffset += 8;
+    }
+
     writeBigInt(value: bigint) {
         // Adapted from https://stackoverflow.com/a/74246085
 
