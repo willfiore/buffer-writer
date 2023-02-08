@@ -1,114 +1,122 @@
-type BufferWriterOpts = {
-    /** Wrap an existing buffer. If this is omitted, a new buffer will be created. */
-    wrapExisting?: {
-        buffer: ArrayBufferLike,
-        byteOffset?: number,
-    },
-};
+import { BufferOpts, Endianness } from "./opts";
 
 export class BufferWriter {
-    private _buffer: ArrayBufferLike;
-    private _dataView: DataView;
-
+    private _buffer: Uint8Array;
     private _byteOffset: number;
+    private _dataView: DataView;
+    private _managed: boolean;
+    private _littleEndian: boolean;
 
-    constructor(opts?: BufferWriterOpts) {
-        this._buffer = opts?.wrapExisting?.buffer ?? new ArrayBuffer(1024);
-        this._byteOffset = opts?.wrapExisting?.byteOffset ?? 0;
-        this._dataView = new DataView(this._buffer);
-    }
-
-    get buffer(): ArrayBufferLike {
-        return this._buffer.slice(0, this._byteOffset);
-    }
-
-    private maybeReallocate(byteLength: number) {
-        const newByteLength = this._byteOffset + byteLength;
-
-        if (newByteLength <= this._buffer.byteLength) {
-            return;
+    constructor(buffer?: Uint8Array, opts?: BufferOpts) {
+        if (buffer !== undefined) {
+            this._buffer = buffer;
+            this._managed = false;
+        } else {
+            this._buffer = new Uint8Array(1024);
+            this._managed = true;
         }
 
-        // Next power of two
-        let nextCapacity = this._buffer.byteLength;
-
-        while (nextCapacity <= newByteLength) {
-            nextCapacity *= 2;
-        }
-
-        const n = new Uint8Array(nextCapacity);
-        n.set(new Uint8Array(this.buffer));
-
-        this._buffer = n.buffer;
-        this._dataView = new DataView(this._buffer);
+        this._byteOffset = 0;
+        this._dataView = new DataView(this._buffer.buffer);
+        this._littleEndian = opts?.endianness === "little";
     }
 
-    writeBool(value: boolean) {
-        this.maybeReallocate(1);
+    get buffer(): Uint8Array {
+        return this._buffer.subarray(0, this._byteOffset);
+    }
+
+    get managed(): boolean {
+        return this._managed;
+    }
+
+    get written(): number {
+        return this._byteOffset;
+    }
+
+    writeBool(value: boolean): boolean {
+        if (!this._maybeReallocate(1)) return false;
 
         const b = value ? 1 : 0;
 
         this._dataView.setUint8(this._byteOffset, b);
         this._byteOffset +=1;
+
+        return true;
     }
 
-    writeUint8(value: number) {
-        this.maybeReallocate(1);
+    writeUint8(value: number): boolean {
+        if (!this._maybeReallocate(1)) return false;
 
         this._dataView.setUint8(this._byteOffset, value);
         this._byteOffset += 1;
+
+        return true;
     }
 
-    writeUint16(value: number) {
-        this.maybeReallocate(2);
+    writeUint16(value: number): boolean {
+        if (!this._maybeReallocate(2)) return false;
 
-        this._dataView.setUint16(this._byteOffset, value);
+        this._dataView.setUint16(this._byteOffset, value, this._littleEndian);
         this._byteOffset += 2;
+
+        return true;
     }
 
-    writeUint32(value: number) {
-        this.maybeReallocate(4);
+    writeUint32(value: number): boolean {
+        if (!this._maybeReallocate(4)) return false;
 
-        this._dataView.setUint32(this._byteOffset, value);
+        this._dataView.setUint32(this._byteOffset, value, this._littleEndian);
         this._byteOffset += 4;
+
+        return true;
     }
 
-    writeUint64(value: bigint) {
-        this.maybeReallocate(8);
+    writeUint64(value: bigint): boolean {
+        if (!this._maybeReallocate(8)) return false;
 
-        this._dataView.setBigUint64(this._byteOffset, value);
+        this._dataView.setBigUint64(this._byteOffset, value, this._littleEndian);
         this._byteOffset += 8;
+
+        return true;
     }
 
-    writeSint8(value: number) {
-        this.maybeReallocate(1);
+    writeSint8(value: number): boolean {
+        if (!this._maybeReallocate(1)) return false;
 
         this._dataView.setInt8(this._byteOffset, value);
         this._byteOffset += 1;
+
+        return true;
     }
 
-    writeSint16(value: number) {
-        this.maybeReallocate(2);
+    writeSint16(value: number): boolean {
+        if (!this._maybeReallocate(2)) return false;
 
-        this._dataView.setInt16(this._byteOffset, value);
+        this._dataView.setInt16(this._byteOffset, value, this._littleEndian);
         this._byteOffset += 2;
+
+        return true;
     }
 
-    writeSint32(value: number) {
-        this.maybeReallocate(4);
+    writeSint32(value: number): boolean {
+        if (!this._maybeReallocate(4)) return false;
 
-        this._dataView.setInt32(this._byteOffset, value);
+        this._dataView.setInt32(this._byteOffset, value, this._littleEndian);
         this._byteOffset += 4;
+
+        return true;
     }
 
-    writeSint64(value: bigint) {
-        this.maybeReallocate(8);
+    writeSint64(value: bigint): boolean {
+        if (!this._maybeReallocate(8)) return false;
 
-        this._dataView.setBigInt64(this._byteOffset, value);
+        this._dataView.setBigInt64(this._byteOffset, value, this._littleEndian);
         this._byteOffset += 8;
+
+        return true;
     }
 
-    writeBigInt(value: bigint) {
+    writeBigInt(value: bigint): boolean {
         // Adapted from https://stackoverflow.com/a/74246085
 
         // shift 1 step to the left, and XOR if less than 0
@@ -121,39 +129,80 @@ export class BufferWriter {
         if (hex.length % 2) hex = '0' + hex;
 
         const byteLength = hex.length / 2;
+
+        if (!this._maybeReallocate(4 + byteLength)) return false;
+
         this.writeUint32(byteLength);
 
-        for (let i = 0; i < byteLength; ++i) {
+        const start = this._littleEndian ? byteLength - 1 : 0;
+        const end   = this._littleEndian ? -1 : byteLength;
+        const delta = this._littleEndian ? -1 : 1;
+
+        for (let i = start; i !== end; i += delta) {
             const j = i * 2;
             const v = parseInt(hex.slice(j, j + 2), 16);
 
             this.writeUint8(v);
         }
+
+        return true;
     }
 
-    writeFloat32(value: number) {
-        this.maybeReallocate(4);
+    writeFloat32(value: number): boolean {
+        if (!this._maybeReallocate(4)) return false;
 
-        this._dataView.setFloat32(this._byteOffset, value);
+        this._dataView.setFloat32(this._byteOffset, value, this._littleEndian);
         this._byteOffset += 4;
+
+        return true;
     }
 
-    writeFloat64(value: number) {
-        this.maybeReallocate(8);
+    writeFloat64(value: number): boolean {
+        if (!this._maybeReallocate(8)) return false;
 
-        this._dataView.setFloat64(this._byteOffset, value);
+        this._dataView.setFloat64(this._byteOffset, value, this._littleEndian);
         this._byteOffset += 8;
+
+        return true;
     }
 
     writeString(value: string) {
         const encoder = new TextEncoder();
         const bytes = encoder.encode(value);
 
-        this.maybeReallocate(4 + bytes.byteLength);
-
+        if (!this._maybeReallocate(4 + bytes.byteLength)) return false;
         this.writeUint32(bytes.byteLength);
 
-        new Uint8Array(this._buffer).set(bytes, this._byteOffset);
+        this._buffer.set(bytes, this._byteOffset);
         this._byteOffset += bytes.byteLength;
+
+        return true;
+    }
+
+    private _maybeReallocate(byteLength: number): boolean {
+        const newByteLength = this._byteOffset + byteLength;
+
+        if (newByteLength <= this._buffer.byteLength) {
+            return true;
+        }
+
+        if (!this.managed) {
+            return false;
+        }
+
+        // Next power of two
+        let nextCapacity = this._buffer.byteLength;
+
+        while (nextCapacity <= newByteLength) {
+            nextCapacity *= 2;
+        }
+
+        const newBuffer = new Uint8Array(nextCapacity);
+        newBuffer.set(new Uint8Array(this.buffer));
+
+        this._buffer = newBuffer;
+        this._dataView = new DataView(this._buffer.buffer);
+
+        return true;
     }
 }

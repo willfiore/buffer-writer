@@ -1,25 +1,24 @@
-type BufferReaderOpts = {
-    buffer: ArrayBufferLike,
-    offset?: number,
-};
+import { BufferOpts } from "./opts";
 
 export class BufferReader {
-    private _buffer: ArrayBufferLike;
+    private _buffer: Uint8Array;
     private _dataView: DataView;
     private _byteOffset: number;
+    private _littleEndian: boolean;
 
-    constructor(opts: BufferReaderOpts) {
-        this._buffer = opts.buffer;
-        this._byteOffset = opts.offset ?? 0;
-        this._dataView = new DataView(this._buffer);
+    constructor(buffer: Uint8Array, byteOffset?: number, opts?: BufferOpts) {
+        this._buffer = buffer;
+        this._byteOffset = byteOffset ?? 0;
+        this._dataView = new DataView(this._buffer.buffer);
+        this._littleEndian = opts?.endianness === "little";
     }
 
     get buffer(): ArrayBufferLike {
         return this._buffer;
     }
 
-    private wouldOverflow(numBytesToRead: number): boolean {
-        return this._byteOffset + numBytesToRead > this._buffer.byteLength;
+    get read(): number {
+        return this._byteOffset;
     }
 
     readBool(): boolean | undefined {
@@ -30,7 +29,7 @@ export class BufferReader {
     }
 
     readUint8(): number | undefined {
-        if (this.wouldOverflow(1)) return undefined;
+        if (this._wouldOverflow(1)) return undefined;
         const value = this._dataView.getUint8(this._byteOffset);
         this._byteOffset += 1;
 
@@ -38,31 +37,31 @@ export class BufferReader {
     }
 
     readUint16(): number | undefined {
-        if (this.wouldOverflow(2)) return undefined;
-        const value = this._dataView.getUint16(this._byteOffset);
+        if (this._wouldOverflow(2)) return undefined;
+        const value = this._dataView.getUint16(this._byteOffset, this._littleEndian);
         this._byteOffset += 2;
 
         return value;
     }
 
     readUint32(): number | undefined {
-        if (this.wouldOverflow(4)) return undefined;
-        const value = this._dataView.getUint32(this._byteOffset);
+        if (this._wouldOverflow(4)) return undefined;
+        const value = this._dataView.getUint32(this._byteOffset, this._littleEndian);
         this._byteOffset += 4;
 
         return value;
     }
 
     readUint64(): bigint | undefined {
-        if (this.wouldOverflow(8)) return undefined;
-        const value = this._dataView.getBigUint64(this._byteOffset);
+        if (this._wouldOverflow(8)) return undefined;
+        const value = this._dataView.getBigUint64(this._byteOffset, this._littleEndian);
         this._byteOffset += 8;
 
         return value;
     }
 
     readSint8(): number | undefined {
-        if (this.wouldOverflow(1)) return undefined;
+        if (this._wouldOverflow(1)) return undefined;
         const value = this._dataView.getInt8(this._byteOffset);
         this._byteOffset += 1;
 
@@ -70,24 +69,24 @@ export class BufferReader {
     }
 
     readSint16(): number | undefined {
-        if (this.wouldOverflow(2)) return undefined;
-        const value = this._dataView.getInt16(this._byteOffset);
+        if (this._wouldOverflow(2)) return undefined;
+        const value = this._dataView.getInt16(this._byteOffset, this._littleEndian);
         this._byteOffset += 2;
 
         return value;
     }
 
     readSint32(): number | undefined {
-        if (this.wouldOverflow(4)) return undefined;
-        const value = this._dataView.getInt32(this._byteOffset);
+        if (this._wouldOverflow(4)) return undefined;
+        const value = this._dataView.getInt32(this._byteOffset, this._littleEndian);
         this._byteOffset += 4;
 
         return value;
     }
 
     readSint64(): bigint | undefined {
-        if (this.wouldOverflow(8)) return undefined;
-        const value = this._dataView.getBigInt64(this._byteOffset);
+        if (this._wouldOverflow(8)) return undefined;
+        const value = this._dataView.getBigInt64(this._byteOffset, this._littleEndian);
         this._byteOffset += 8;
 
         return value;
@@ -97,14 +96,18 @@ export class BufferReader {
         const byteLength = this.readUint32();
         if (byteLength === undefined) return undefined;
 
-        const bytes = [];
+        const bytes = new Array(byteLength);
 
         // Read in bytes
-        for (let i = 0; i < byteLength; ++i) {
+        const start = this._littleEndian ? byteLength - 1 : 0;
+        const end   = this._littleEndian ? -1 : byteLength;
+        const delta = this._littleEndian ? -1 : 1;
+
+        for (let i = start; i !== end; i += delta) {
             const byte = this.readUint8();
             if (byte === undefined) return undefined;
 
-            bytes.push(byte);
+            bytes[i] = byte;
         }
 
         // convert bytes back into hex
@@ -119,16 +122,16 @@ export class BufferReader {
     }
 
     readFloat32(): number | undefined {
-        if (this.wouldOverflow(4)) return undefined;
-        const value = this._dataView.getFloat32(this._byteOffset);
+        if (this._wouldOverflow(4)) return undefined;
+        const value = this._dataView.getFloat32(this._byteOffset, this._littleEndian);
         this._byteOffset += 4;
 
         return value;
     }
 
     readFloat64(): number | undefined {
-        if (this.wouldOverflow(8)) return undefined;
-        const value = this._dataView.getFloat64(this._byteOffset);
+        if (this._wouldOverflow(8)) return undefined;
+        const value = this._dataView.getFloat64(this._byteOffset, this._littleEndian);
         this._byteOffset += 8;
 
         return value;
@@ -136,14 +139,14 @@ export class BufferReader {
 
     readString(): string | undefined {
         // Decode string length (4 bytes)
-        if (this.wouldOverflow(4)) return undefined;
-        const byteLength = this._dataView.getUint32(this._byteOffset);
+        if (this._wouldOverflow(4)) return undefined;
+        const byteLength = this._dataView.getUint32(this._byteOffset, this._littleEndian);
 
         // Decode string
-        if (this.wouldOverflow(byteLength)) return undefined;
+        if (this._wouldOverflow(byteLength)) return undefined;
 
         const decoder = new TextDecoder();
-        const view = new Uint8Array(this._buffer, this._byteOffset + 4, byteLength);
+        const view = this._buffer.subarray(this._byteOffset + 4, this._byteOffset + 4 + byteLength);
 
         let value: string;
 
@@ -157,5 +160,9 @@ export class BufferReader {
         this._byteOffset += 4 + byteLength;
 
         return value;
+    }
+
+    private _wouldOverflow(numBytesToRead: number): boolean {
+        return this._byteOffset + numBytesToRead > this._buffer.byteLength;
     }
 }

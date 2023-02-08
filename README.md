@@ -8,24 +8,44 @@ sequentially (e.g. network packets).
 ```ts
 import { BufferWriter, BufferReader } from "@willfiore/buffer-writer";
 
-const w = new BufferWriter();
-w.writeUint8(49);
-w.writeString("hello world");
-w.writeFloat64(1240.015);
+const writer = new BufferWriter();
+writer.writeUint8(49);
+writer.writeString("hello world");
+writer.writeFloat64(1240.015);
 
-const arr = new Uint8Array(w.buffer);
+const buffer = writer.buffer;
 
 // send over the network, serialize to disk, etc...
 
-const r = new BufferReader({ buffer: arr.buffer });
+const reader = new BufferReader(buffer);
 
-const v1 = r.readUint8();   // 49
-const v2 = r.readString();  // "hello world"
-const v3 = r.readFloat64(); // 1240.015
+const v1 = reader.readUint8();   // 49
+const v2 = reader.readString();  // "hello world"
+const v3 = reader.readFloat64(); // 1240.015
 
-const v4 = r.readString(); // undefined (overread)
+const v4 = reader.readString();  // undefined (buffer overread)
 ```
 
-## Notes
+## Write to an existing buffer
 
-- Strings are encoded as UTF-8 and serialized with a 32-bit length, followed by the string bytes.
+You can pass a `Uint8Array` to `new BufferWriter` to adopt an existing buffer.
+
+In this case, the `BufferWriter` will be in "non-managed" mode. In this mode,
+writing will fail if it would overrun the boundary of the passed in buffer.
+
+```ts
+const buffer = new Uint8Array(8);
+const writer = new BufferWriter(buffer);
+
+console.log(writer.managed); // false
+
+writer.writeUint32(0); // true
+writer.writeUint32(0); // true
+writer.writeUint8(0);  // false (buffer overwrite)
+```
+
+## Notes on the binary format
+
+- Multi-byte values are written as big-endian by default. This can be changed with the `endianness` option.
+- Strings are encoded as UTF-8 and serialized with a 32-bit length, followed by
+the string bytes. Strings are not null-terminated.
