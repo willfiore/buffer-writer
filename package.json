@@ -1,9 +1,9 @@
 {
   "name": "@willfiore/buffer-writer",
-  "author": "Will Fiore",
-  "version": "1.3.0",
+  "author": "Will Fiore <will@willfiore.com>",
+  "version": "1.3.1",
   "description": "Simply read and write binary data.",
-  "keywords": [],
+  "keywords": ["serialize", "binary", "encode", "decode", "stream", "read", "write"],
   "license": "ISC",
   "repository": "https://github.com/willfiore/buffer-writer",
   "main": "dist/willfiore-buffer-writer.cjs.js",
