@@ -139,14 +139,14 @@ export class BufferReader {
 
     readString(): string | undefined {
         // Decode string length (4 bytes)
-        if (this._wouldOverflow(4)) return undefined;
-        const byteLength = this._dataView.getUint32(this._byteOffset, this._littleEndian);
+        const byteLength = this.readUint32();
+        if (byteLength === undefined) return undefined;
 
         // Decode string
         if (this._wouldOverflow(byteLength)) return undefined;
 
         const decoder = new TextDecoder();
-        const view = this._buffer.subarray(this._byteOffset + 4, this._byteOffset + 4 + byteLength);
+        const view = this._buffer.subarray(this._byteOffset, this._byteOffset + byteLength);
 
         let value: string;
 
@@ -157,7 +157,7 @@ export class BufferReader {
         }
 
         // Increment byte offset
-        this._byteOffset += 4 + byteLength;
+        this._byteOffset += byteLength;
 
         return value;
     }

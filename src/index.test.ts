@@ -73,6 +73,14 @@ describe("suite", () => {
         expect(w.writeUint8(100)).toBe(false);
     });
 
+    test("overread string", () => {
+        const buffer = new Uint8Array([0, 0, 0, 4, 97, 98, 99]); // string length is too long for buffer
+        const r = new BufferReader(buffer);
+
+        const str = r.readString();
+        expect(str).toBeUndefined();
+    });
+
     test("bigint", () => {
         const w = new BufferWriter();
         w.writeBigInt(BigInt(1));
