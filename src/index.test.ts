@@ -126,3 +126,126 @@ describe("suite", () => {
         });
     });
 });
+
+describe("write / read int", () => {
+    test("u8 range - 1", () => {
+        const writer = new BufferWriter();
+        writer.writeInt(4, 2, 10);
+        expect(writer.buffer).toStrictEqual(new Uint8Array([4 - 2]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readInt(2, 10)).toEqual(4);
+    });
+
+    test("u8 range - 2", () => {
+        const writer = new BufferWriter();
+        writer.writeInt(100, 0, 255);
+        expect(writer.buffer).toStrictEqual(new Uint8Array([100]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readInt(0, 255)).toEqual(100);
+    });
+
+    test("u16 range - 1", () => {
+        const writer = new BufferWriter();
+        writer.writeInt(256, 0, 256);
+        expect(writer.buffer).toStrictEqual(new Uint8Array([1, 0]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readInt(0, 256)).toEqual(256);
+    });
+
+    test("u16 range - 2", () => {
+        const writer = new BufferWriter();
+        writer.writeInt(12111, 344, 32667);
+        expect(writer.buffer).toStrictEqual(new Uint8Array([45, 247]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readInt(344, 32667)).toEqual(12111);
+    });
+
+    test("u16 range - 3", () => {
+        const writer = new BufferWriter();
+        writer.writeInt(22222, 0, 65535);
+        expect(writer.buffer).toStrictEqual(new Uint8Array([86, 206]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readInt(0, 65535)).toEqual(22222);
+    });
+
+    test("u32 range - 1", () => {
+        const writer = new BufferWriter();
+        writer.writeInt(65536, 0, 65536);
+        expect(writer.buffer).toStrictEqual(new Uint8Array([0, 1, 0, 0]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readInt(0, 65536)).toEqual(65536);
+    });
+
+    test("u32 range - 1", () => {
+        const writer = new BufferWriter();
+        writer.writeInt(65538, 0, 165536);
+        expect(writer.buffer).toStrictEqual(new Uint8Array([0, 1, 0, 2]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readInt(0, 165536)).toEqual(65538);
+    });
+});
+
+describe("write / read string", () => {
+    test("bounded u8 string", () => {
+        const writer = new BufferWriter();
+        writer.writeString("abc", 255);
+
+        expect(writer.buffer).toStrictEqual(new Uint8Array([
+            // length stored in one byte, because the string cannot be longer than 255 characters.
+            3,
+            97, 98, 99,
+        ]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readString(255)).toBe("abc");
+    });
+
+    test("bounded u16 string", () => {
+        const writer = new BufferWriter();
+        writer.writeString("abc", 65535);
+
+        expect(writer.buffer).toStrictEqual(new Uint8Array([
+            // length stored in two bytes, because the string cannot be longer than 65535 characters.
+            0, 3,
+            97, 98, 99,
+        ]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readString(65535)).toBe("abc");
+    });
+
+    test("bounded u32 string", () => {
+        const writer = new BufferWriter();
+        writer.writeString("abc", 65538);
+
+        expect(writer.buffer).toStrictEqual(new Uint8Array([
+            // length stored in four bytes
+            0, 0, 0, 3,
+            97, 98, 99,
+        ]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readString(65538)).toBe("abc");
+    });
+
+    test("unbounded string", () => {
+        const writer = new BufferWriter();
+        writer.writeString("abc");
+
+        expect(writer.buffer).toStrictEqual(new Uint8Array([
+            // length stored in four bytes
+            0, 0, 0, 3,
+            97, 98, 99,
+        ]));
+
+        const reader = new BufferReader(writer.buffer);
+        expect(reader.readString()).toBe("abc");
+    });
+});

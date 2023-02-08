@@ -21,6 +21,26 @@ export class BufferReader {
         return this._byteOffset;
     }
 
+    readInt(min: number, max: number): number | undefined {
+        if (max < min) {
+            throw new RangeError("`min` must be less than `max`.");
+        }
+
+        const range = max - min;
+        let readValue: number | undefined;
+
+        if (range < 256) {
+            readValue = this.readUint8();
+        } else if (range < 65536) {
+            readValue = this.readUint16();
+        } else {
+            readValue = this.readUint32();
+        }
+
+        if (readValue === undefined) return undefined;
+        return readValue + min;
+    }
+
     readBool(): boolean | undefined {
         const value = this.readUint8();
         if (value === undefined) return undefined;
@@ -137,9 +157,16 @@ export class BufferReader {
         return value;
     }
 
-    readString(): string | undefined {
-        // Decode string length (4 bytes)
-        const byteLength = this.readUint32();
+    readString(maxLength?: number): string | undefined {
+        // Decode string length
+        let byteLength: number | undefined;
+
+        if (maxLength !== undefined) {
+            byteLength = this.readInt(0, maxLength);
+        } else {
+            byteLength = this.readUint32();
+        }
+
         if (byteLength === undefined) return undefined;
 
         // Decode string

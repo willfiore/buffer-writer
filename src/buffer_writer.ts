@@ -33,6 +33,27 @@ export class BufferWriter {
         return this._byteOffset;
     }
 
+    writeInt(value: number, min: number, max: number): boolean {
+        if (max < min) {
+            throw new RangeError("`min` must be less than `max`.");
+        }
+
+        if (value < min || value > max) {
+            throw new RangeError("`value` must be between `min` and `max` (inclusive).");
+        }
+
+        const range = max - min;
+        const valueToWrite = value - min;
+        
+        if (range < 256) {
+            return this.writeUint8(valueToWrite);
+        } else if (range < 65536) {
+            return this.writeUint16(valueToWrite);
+        } else {
+            return this.writeUint32(valueToWrite);
+        }
+    }
+
     writeBool(value: boolean): boolean {
         if (!this._maybeReallocate(1)) return false;
 
@@ -166,12 +187,21 @@ export class BufferWriter {
         return true;
     }
 
-    writeString(value: string) {
+    writeString(value: string, maxLength?: number): boolean {
         const encoder = new TextEncoder();
         const bytes = encoder.encode(value);
 
-        if (!this._maybeReallocate(4 + bytes.byteLength)) return false;
-        this.writeUint32(bytes.byteLength);
+        if (maxLength !== undefined) {
+            if (bytes.byteLength > maxLength) {
+                throw new RangeError("string `value` cannot be longer than `maxLength` bytes.");
+            }
+
+            if (!this.writeInt(bytes.byteLength, 0, maxLength)) return false;
+        } else {
+            if (!this.writeUint32(bytes.byteLength)) return false;
+        }
+
+        if (!this._maybeReallocate(bytes.byteLength)) return false;
 
         this._buffer.set(bytes, this._byteOffset);
         this._byteOffset += bytes.byteLength;
